@@ -262,6 +262,7 @@ async function handleGatewayRequest(req, res, serviceId) {
   });
 
   if (!gateway.ok) {
+    console.error(`[gateway:${serviceId}] ${gateway.message}`);
     res.status(gateway.status).json({
       ok: false,
       message: gateway.message,

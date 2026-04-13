@@ -70,6 +70,7 @@ function getHost(url) {
   }
 }
 
+
 function extractRepoHint(value) {
   return String(value || "").match(/\b[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\b/)?.[0]?.toLowerCase() || "";
 }
@@ -221,6 +222,7 @@ function buildResultSummary(kind, query, items) {
     ? `Top current result for "${query}": ${first.title}.`
     : `Best search match for "${query}": ${first.title}.`;
 }
+
 
 async function fetchJson(url, init) {
   const response = await fetch(url, init);
@@ -672,45 +674,82 @@ async function runCustomHttpProfile(definition, input, limit) {
 }
 
 async function runSearchGateway(query, limit, braveSearchApiKey) {
+  const failures = [];
+
   if (braveSearchApiKey) {
-    const brave = await runBraveSearch(query, limit, braveSearchApiKey);
-    if (brave.itemCount > 0) {
-      return {
-        ...brave,
-        summary: buildResultSummary("search", query, brave.items),
-      };
+    try {
+      const brave = await runBraveSearch(query, limit, braveSearchApiKey);
+      if (brave.itemCount > 0) {
+        return {
+          ...brave,
+          summary: buildResultSummary("search", query, brave.items),
+        };
+      }
+      failures.push("Brave returned no results");
+    } catch (error) {
+      failures.push(`Brave failed: ${error instanceof Error ? error.message : "unknown error"}`);
     }
   }
 
-  const duck = await runDuckDuckGoSearch(query, limit);
-  if (duck.itemCount > 0) {
-    return {
-      ...duck,
-      summary: buildResultSummary("search", query, duck.items),
-    };
+  try {
+    const duck = await runDuckDuckGoSearch(query, limit);
+    if (duck.itemCount > 0) {
+      return {
+        ...duck,
+        summary: buildResultSummary("search", query, duck.items),
+      };
+    }
+    failures.push("DuckDuckGo returned no results");
+  } catch (error) {
+    failures.push(`DuckDuckGo failed: ${error instanceof Error ? error.message : "unknown error"}`);
   }
 
-  const wiki = await runWikipediaSearch(query, limit);
-  return {
-    ...wiki,
-    summary: buildResultSummary("search", query, wiki.items),
-  };
+  try {
+    const wiki = await runWikipediaSearch(query, limit);
+    if (wiki.itemCount > 0) {
+      return {
+        ...wiki,
+        summary: buildResultSummary("search", query, wiki.items),
+      };
+    }
+    failures.push("Wikipedia returned no results");
+  } catch (error) {
+    failures.push(`Wikipedia failed: ${error instanceof Error ? error.message : "unknown error"}`);
+  }
+
+  throw new Error(`All live search providers failed. ${failures.join(" / ")}`);
 }
 
 async function runNewsGateway(query, limit) {
-  const google = await runGoogleNewsSearch(query, limit);
-  if (google.itemCount > 0) {
-    return {
-      ...google,
-      summary: buildResultSummary("news", query, google.items),
-    };
+  const failures = [];
+
+  try {
+    const google = await runGoogleNewsSearch(query, limit);
+    if (google.itemCount > 0) {
+      return {
+        ...google,
+        summary: buildResultSummary("news", query, google.items),
+      };
+    }
+    failures.push("Google News returned no results");
+  } catch (error) {
+    failures.push(`Google News failed: ${error instanceof Error ? error.message : "unknown error"}`);
   }
 
-  const hackerNews = await runHackerNewsSearch(query, limit);
-  return {
-    ...hackerNews,
-    summary: buildResultSummary("news", query, hackerNews.items),
-  };
+  try {
+    const hackerNews = await runHackerNewsSearch(query, limit);
+    if (hackerNews.itemCount > 0) {
+      return {
+        ...hackerNews,
+        summary: buildResultSummary("news", query, hackerNews.items),
+      };
+    }
+    failures.push("Hacker News returned no results");
+  } catch (error) {
+    failures.push(`Hacker News failed: ${error instanceof Error ? error.message : "unknown error"}`);
+  }
+
+  throw new Error(`All live news providers failed. ${failures.join(" / ")}`);
 }
 
 async function runApiGateway(profileId, input, limit, customGatewayDefinitions = []) {

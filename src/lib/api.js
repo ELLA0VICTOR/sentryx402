@@ -25,7 +25,7 @@ async function requestJson(path, init) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    if (response.status === 502) {
+    if (response.status === 502 && !data.message) {
       throw new Error(
         `Backend unavailable on ${API_BASE_URL || "http://localhost:4021"}.`,
       );
