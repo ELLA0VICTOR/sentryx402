@@ -21,7 +21,9 @@ import { createPaymentFetcher } from "./lib/paymentClient";
 import { createFallbackRuntime, getTabFromHash, mergeRuntime, pageTabs } from "./lib/runtimeState";
 
 const BACKEND_HELP =
-  "Backend unavailable on http://localhost:4021. Start `npm run dev:server` in a separate terminal.";
+  `Backend unavailable on ${import.meta.env.VITE_API_BASE_URL || "http://localhost:4021"}. ${
+    import.meta.env.DEV ? "Start `npm run dev:server` in a separate terminal." : "Check your deployed backend URL."
+  }`;
 
 function normalizeQuery(value) {
   return String(value || "")

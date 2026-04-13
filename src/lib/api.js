@@ -1,8 +1,15 @@
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+
+function buildUrl(path) {
+  return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+}
+
 async function requestJson(path, init) {
   let response;
+  const url = buildUrl(path);
 
   try {
-    response = await fetch(path, {
+    response = await fetch(url, {
       headers: {
         "Content-Type": "application/json",
         ...(init?.headers || {}),
@@ -11,7 +18,7 @@ async function requestJson(path, init) {
     });
   } catch {
     throw new Error(
-      "Backend unavailable on http://localhost:4021. Start `npm run dev:server` in a separate terminal.",
+      `Backend unavailable on ${API_BASE_URL || "http://localhost:4021"}.`,
     );
   }
 
@@ -20,7 +27,7 @@ async function requestJson(path, init) {
   if (!response.ok) {
     if (response.status === 502) {
       throw new Error(
-        "Backend unavailable on http://localhost:4021. Start `npm run dev:server` in a separate terminal.",
+        `Backend unavailable on ${API_BASE_URL || "http://localhost:4021"}.`,
       );
     }
 
