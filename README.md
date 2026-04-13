@@ -1,35 +1,106 @@
 # Sentryx402
 
-Sentryx402 is payment-native agent infrastructure on Stellar x402.
+Sentryx402 is a payment-native agent runner built for the Stellar x402 hackathon.
 
-It ships the combined product surface you would expect in a hackathon demo:
+It gives an autonomous research agent three things most agent workflows still lack:
 
-1. `Gateway`
-   Runs paid search and paid news calls behind x402 so an agent pays only when it needs fresh information.
-2. `Agent Runner`
-   Takes a natural-language task, plans the paid steps, runs them with Freighter, and returns a final answer with sources.
-3. `Receipts + Controls`
-   Keeps operator policy checks and settlement receipts visible for every paid call.
+- a real wallet
+- a hard spending budget
+- a receipt trail for every paid decision
 
-## What The App Does
+Instead of handing an agent a broad API key or a monthly subscription, Sentryx402 lets it pay per query for live search and live news on Stellar testnet using x402.
 
-- Connects a real Stellar wallet that can sign Soroban auth entries
-- Evaluates each paid query against an operator policy profile
-- Calls real x402-protected search and news routes on Stellar testnet
-- Records successful settlements in a visible receipt ledger
-- Returns a final answer so the Agent Runner is useful instead of just returning raw links
+## Problem
 
-## Stack
+AI agents can reason, but they usually cannot spend money safely.
 
-- React + Vite
+Most teams are forced into one of three bad choices:
+
+- give the agent unrestricted API access and hope the bill stays sane
+- preload stale context and lose access to live information
+- block external calls entirely and limit what the agent can do
+
+Sentryx402 solves that by letting an agent buy live data one step at a time with:
+
+- policy checks before every paid request
+- a visible budget cap
+- auditable receipts after each successful payment
+
+## What It Does
+
+Sentryx402 ships as a simple three-part product:
+
+1. `Overview`
+   Shows the wallet, policy, payment, and receipt flow in one clean landing page.
+2. `Gateway`
+   Runs paid search and paid news queries through x402-protected routes.
+3. `Agent Runner`
+   Accepts a natural-language task, plans the paid steps, respects a spend budget, and returns a final answer with sources.
+4. `Receipts`
+   Shows the settlement trail for every successful paid call.
+
+## Key Features
+
+- Freighter wallet connection on `stellar:testnet`
+- x402-protected search and news gateways
+- policy checks before paid execution
+- agent budget cap with visible spend tracking
+- final answer plus linked sources
+- receipt ledger for every paid query
+- responsive UI for desktop and mobile demo flows
+
+## Tech Stack
+
+- React
+- Vite
+- Tailwind CSS v3
 - Express
+- `@x402/core`
 - `@x402/express`
 - `@x402/fetch`
 - `@x402/stellar`
 - `@stellar/freighter-api`
 
+## Architecture
+
+The app is split into a browser client and an Express backend:
+
+- the frontend connects Freighter, triggers policy checks, and runs paid x402 fetches
+- the backend exposes `/api/*` routes for runtime state and planning
+- the backend exposes `/x402/*` paid routes for search and news
+- successful settlements are recorded in the in-memory receipt ledger
+
+## Repo Structure
+
+```text
+sentryx402/
+├─ public/
+│  └─ branding/
+├─ server/
+│  ├─ config.js
+│  ├─ gatewayProviders.js
+│  ├─ index.js
+│  ├─ playground.js
+│  ├─ policyEngine.js
+│  └─ runtimeStore.js
+├─ src/
+│  ├─ assets/
+│  ├─ components/
+│  │  ├─ app/
+│  │  └─ layout/
+│  ├─ lib/
+│  ├─ App.css
+│  ├─ App.jsx
+│  └─ main.jsx
+├─ .env.example
+├─ index.html
+├─ package.json
+└─ README.md
+```
+
 ## Live Routes
 
+- `GET /api/health`
 - `GET /api/app`
 - `GET /api/runtime`
 - `POST /api/session/wallet`
@@ -39,60 +110,90 @@ It ships the combined product surface you would expect in a hackathon demo:
 - `GET /x402/gateway/search`
 - `GET /x402/gateway/news`
 
-The browser client uses Freighter to sign the Stellar auth entry required by x402, then retries the paid request automatically through `@x402/fetch`.
-
 ## Environment
 
-Copy `.env.example` to `.env` and fill in:
+Copy `.env.example` to `.env` and fill in the required values.
+
+Required:
 
 - `X402_FACILITATOR_API_KEY`
 - `STELLAR_PAY_TO`
 
-Optional:
+Recommended for deployed search:
 
 - `TAVILY_API_KEY`
-  If present, the search gateway uses Tavily as the primary live search provider in production.
+
+Optional:
+
 - `BRAVE_SEARCH_API_KEY`
-  If present, the search gateway uses Brave Search as a secondary live provider.
 - `X402_SEARCH_PRICE`
 - `X402_NEWS_PRICE`
+- `CORS_ORIGIN`
 
-Defaults:
+Frontend-only on Vercel:
 
-- `stellar:testnet`
-- Soroban testnet RPC
-- OpenZeppelin Channels x402 testnet facilitator
-- `$0.01` search queries
-- `$0.02` news queries
+- `VITE_API_BASE_URL`
 
-## Run
+## Local Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run both frontend and backend:
 
 ```bash
 npm run dev
 ```
 
-That starts:
-
-- the Express backend on `http://localhost:4021`
-- the Vite frontend on `http://localhost:5173`
-
-You can also run them separately:
+Or run them separately:
 
 ```bash
 npm run dev:server
 npm run dev:client
 ```
 
-The Vite dev server proxies `/api` and `/x402` to the backend automatically.
+Default local URLs:
 
-## Build
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:4021`
 
-```bash
-npm run build
-```
+## Production Deployment
+
+Recommended split:
+
+- frontend on Vercel
+- backend on Render
+
+Backend envs should include:
+
+- `PUBLIC_APP_ORIGIN`
+- `CORS_ORIGIN`
+- `STELLAR_NETWORK`
+- `STELLAR_RPC_URL`
+- `X402_FACILITATOR_URL`
+- `X402_FACILITATOR_API_KEY`
+- `STELLAR_PAY_TO`
+- `TAVILY_API_KEY`
+
+Frontend envs should include:
+
+- `VITE_API_BASE_URL`
+
+## Demo Flow
+
+1. Connect Freighter on Stellar testnet
+2. Run a paid search or news query in `Gateway`
+3. Open `Agent Runner`
+4. Enter a task and a budget
+5. Approve each paid step
+6. Review the final answer and the receipts
 
 ## Notes
 
-- Real settlement requires both the facilitator API key and a valid `STELLAR_PAY_TO` address.
-- The live wallet path is Freighter-first because Stellar x402 needs auth-entry signing from a compatible wallet.
-- The overview stays visual, while the action tabs stay intentionally sparse for judging and live demos.
+- x402 intentionally returns `402 Payment Required` before the paid retry succeeds
+- live settlement requires a valid facilitator key and funded testnet wallet
+- DuckDuckGo scraping may work locally but is less reliable in hosted environments, which is why Tavily is the preferred deployed search provider
+- `.env` is intentionally ignored and should never be committed

@@ -174,7 +174,7 @@ export function createFallbackRuntime() {
         description: "Paid search gateway for docs and references.",
         price: "$0.01",
         priceUsd: 0.01,
-        upstream: "DuckDuckGo / Wikipedia",
+        upstream: "Tavily / Brave / DuckDuckGo / Wikipedia",
         status: "configuration_required",
       },
       {

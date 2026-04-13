@@ -106,6 +106,10 @@
   align-items: center;
   justify-content: center;
   font-size: 0.76rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition:
     background 160ms ease,
     border-color 160ms ease,
@@ -293,6 +297,7 @@
   color: var(--text-2);
   font-size: 0.9rem;
   line-height: 1.9;
+  max-width: 62ch;
 }
 
 .page-grid {
@@ -1124,6 +1129,7 @@ select.field-input optgroup {
 .trace-row strong {
   color: var(--text-1);
   font-size: 0.8rem;
+  overflow-wrap: anywhere;
 }
 
 .result-card p,
@@ -1183,6 +1189,7 @@ select.field-input optgroup {
 .answer-section strong {
   color: var(--text-1);
   font-size: 0.84rem;
+  overflow-wrap: anywhere;
 }
 
 .answer-section p {
@@ -1396,10 +1403,15 @@ select.field-input optgroup {
     width: 100%;
     justify-content: flex-start;
     overflow-x: auto;
+    scrollbar-width: none;
   }
 
   .site-nav-link {
     white-space: nowrap;
+  }
+
+  .site-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .site-connect,
@@ -1407,6 +1419,15 @@ select.field-input optgroup {
   .primary-button,
   .secondary-button {
     width: 100%;
+  }
+
+  .site-brand,
+  .site-connect {
+    justify-self: stretch;
+  }
+
+  .site-brand {
+    justify-content: center;
   }
 
   .hero-inner {
@@ -1440,6 +1461,15 @@ select.field-input optgroup {
   .control-panel-head {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .runtime-panel-head,
+  .control-panel-head,
+  .terminal-shell-head {
+    min-height: auto;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    row-gap: 6px;
   }
 
   .diagram-shell {
@@ -1476,6 +1506,22 @@ select.field-input optgroup {
   .trace-row {
     grid-template-columns: 1fr;
     flex-direction: column;
+  }
+
+  .panel-kv {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .panel-kv strong,
+  .simple-row span {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .site-footer-downloads,
+  .site-footer-links {
+    width: 100%;
   }
 
   .control-button {
