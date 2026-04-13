@@ -74,6 +74,7 @@ export default function App() {
   const [playgroundInput, setPlaygroundInput] = useState(
     "Find the latest Stellar x402 updates and summarize the most important ones.",
   );
+  const [agentBudgetUsd, setAgentBudgetUsd] = useState(0.3);
   const [playgroundState, setPlaygroundState] = useState({
     status: "idle",
     plan: null,
@@ -526,6 +527,8 @@ export default function App() {
         }
 
         const report = await savePlaygroundRun({
+          budgetUsd: agentBudgetUsd,
+          completedAllSteps: outputs.length >= plan.steps.length,
           outputs,
           plan,
           task: playgroundInput,
@@ -547,6 +550,36 @@ export default function App() {
 
       if (!service) {
         throw new Error(`Unknown service: ${nextStep.serviceId}`);
+      }
+
+      const spentUsd = Number(outputs.reduce((sum, item) => sum + (item.priceUsd || 0), 0).toFixed(2));
+      const remainingBudgetUsd = Number((agentBudgetUsd - spentUsd).toFixed(2));
+
+      if (remainingBudgetUsd <= 0 || service.priceUsd > remainingBudgetUsd) {
+        if (!outputs.length) {
+          throw new Error(
+            `The agent budget is too low for the first step. Raise it above $${service.priceUsd.toFixed(2)}.`,
+          );
+        }
+
+        const report = await savePlaygroundRun({
+          budgetUsd: agentBudgetUsd,
+          completedAllSteps: false,
+          outputs,
+          plan,
+          task: playgroundInput,
+        });
+
+        setPlaygroundState((current) => ({
+          ...current,
+          error: "",
+          plan,
+          run: report.run,
+          status: "done",
+        }));
+
+        await refreshRuntime();
+        return;
       }
 
       setPlaygroundLog(nextStep.id, "checking", "policy evaluation");
@@ -601,6 +634,8 @@ export default function App() {
       }
 
       const report = await savePlaygroundRun({
+        budgetUsd: agentBudgetUsd,
+        completedAllSteps: true,
         outputs: nextOutputs,
         plan,
         task: playgroundInput,
@@ -644,9 +679,11 @@ export default function App() {
     onPlanPlayground: handlePlanPlayground,
     onRunPlayground: handleRunPlayground,
     onSwitchToGateway: () => switchPage("gateway"),
+    agentBudgetUsd,
     playgroundInput,
     playgroundState,
     runtimeError,
+    setAgentBudgetUsd,
     setGatewayInput,
     setPlaygroundInput,
     walletState,

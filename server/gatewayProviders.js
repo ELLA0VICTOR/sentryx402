@@ -70,6 +70,10 @@ function getHost(url) {
   }
 }
 
+function extractRepoHint(value) {
+  return String(value || "").match(/\b[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\b/)?.[0]?.toLowerCase() || "";
+}
+
 function uniqueItems(items) {
   const seen = new Set();
 
@@ -80,6 +84,20 @@ function uniqueItems(items) {
 
     seen.add(item.url);
     return true;
+  });
+}
+
+function prioritizeSearchItems(items, query) {
+  const repoHint = extractRepoHint(query);
+
+  if (!repoHint) {
+    return items;
+  }
+
+  return [...items].sort((left, right) => {
+    const leftMatch = `${left.title} ${left.url}`.toLowerCase().includes(repoHint) ? 1 : 0;
+    const rightMatch = `${right.title} ${right.url}`.toLowerCase().includes(repoHint) ? 1 : 0;
+    return rightMatch - leftMatch;
   });
 }
 
@@ -275,7 +293,7 @@ async function runDuckDuckGoSearch(query, limit) {
 
   return {
     itemCount: items.length,
-    items,
+    items: prioritizeSearchItems(items, query),
     limit,
     provider: "DuckDuckGo Search",
     query,
@@ -305,7 +323,7 @@ async function runWikipediaSearch(query, limit) {
 
   return {
     itemCount: items.length,
-    items,
+    items: prioritizeSearchItems(items, query),
     limit,
     provider: "Wikipedia Search",
     query,
@@ -338,7 +356,7 @@ async function runBraveSearch(query, limit, apiKey) {
 
   return {
     itemCount: items.length,
-    items,
+    items: prioritizeSearchItems(items, query),
     limit,
     provider: "Brave Search",
     query,

@@ -69,6 +69,16 @@ function formatTimestamp(value) {
   });
 }
 
+function formatUsd(value) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return "$0.00";
+  }
+
+  return `$${parsed.toFixed(2)}`;
+}
+
 function EmptyStateIcon() {
   return (
     <svg aria-hidden="true" className="empty-state-icon" viewBox="0 0 48 48">
@@ -278,8 +288,9 @@ function describeGatewayResult(result) {
   if (!lead) {
     return "No result returned yet.";
   }
+  const snippet = lead.snippet ? ` - ${lead.snippet}` : "";
+  return `${lead.title}${snippet}`;
 
-  return `${lead.title}${lead.snippet ? ` — ${lead.snippet}` : ""}`;
 }
 
 function ResultCard({ item }) {
@@ -370,23 +381,58 @@ function getPlaygroundActionLabel(playgroundState) {
   }
 
   if (!totalSteps) {
-    return "Run Task";
+    return "Deploy Agent";
   }
 
   if (completedSteps === 0) {
-    return totalSteps > 1 ? `Run Step 1 of ${totalSteps}` : "Run Task";
+    return "Deploy Agent";
   }
 
   if (completedSteps < totalSteps) {
-    return `Continue Step ${completedSteps + 1} of ${totalSteps}`;
+    return `Continue Agent (${completedSteps + 1}/${totalSteps})`;
   }
 
   return "Run Again";
 }
 
-function PlaygroundTaskPanel({ onPlanPlayground, onRunPlayground, playgroundInput, playgroundState, setPlaygroundInput }) {
+function SpendMeter({ budgetUsd, spentUsd }) {
+  const safeBudget = Math.max(Number(budgetUsd) || 0, 0);
+  const safeSpent = Math.max(Number(spentUsd) || 0, 0);
+  const remaining = Math.max(0, safeBudget - safeSpent);
+  const progress = safeBudget > 0 ? Math.min((safeSpent / safeBudget) * 100, 100) : 0;
+
+  return (
+    <div className="budget-meter">
+      <div className="budget-meter-head">
+        <strong>{formatUsd(safeSpent)} spent</strong>
+        <span>{formatUsd(remaining)} remaining</span>
+      </div>
+      <div className="budget-meter-track" aria-hidden="true">
+        <div className="budget-meter-fill" style={{ width: `${progress}%` }} />
+      </div>
+      <div className="budget-meter-meta">
+        <span>Budget cap {formatUsd(safeBudget)}</span>
+        <span>{progress >= 100 ? "cap reached" : "within cap"}</span>
+      </div>
+    </div>
+  );
+}
+
+function PlaygroundTaskPanel({
+  agentBudgetUsd,
+  onPlanPlayground,
+  onRunPlayground,
+  playgroundInput,
+  playgroundState,
+  setAgentBudgetUsd,
+  setPlaygroundInput,
+}) {
   const totalSteps = playgroundState.plan?.steps.length || 0;
   const completedSteps = playgroundState.outputs?.length || 0;
+  const spentUsd =
+    playgroundState.run?.totalSpendUsd ||
+    playgroundState.outputs?.reduce((sum, item) => sum + (item.priceUsd || 0), 0) ||
+    0;
 
   return (
     <article className="control-panel">
@@ -396,7 +442,7 @@ function PlaygroundTaskPanel({ onPlanPlayground, onRunPlayground, playgroundInpu
       </div>
 
       <div className="control-panel-body">
-        <h3>Agent task</h3>
+        <h3>Agent mission</h3>
 
         <div className="form-stack">
           <label className="field-block">
@@ -408,7 +454,21 @@ function PlaygroundTaskPanel({ onPlanPlayground, onRunPlayground, playgroundInpu
               value={playgroundInput}
             />
           </label>
+
+          <label className="field-block">
+            <span>Agent budget (USDC)</span>
+            <input
+              className="field-input"
+              min="0.01"
+              onChange={(event) => setAgentBudgetUsd(Number(event.target.value))}
+              step="0.01"
+              type="number"
+              value={agentBudgetUsd}
+            />
+          </label>
         </div>
+
+        <SpendMeter budgetUsd={agentBudgetUsd} spentUsd={spentUsd} />
 
         <div className="control-actions">
           <button
@@ -417,7 +477,7 @@ function PlaygroundTaskPanel({ onPlanPlayground, onRunPlayground, playgroundInpu
             onClick={onPlanPlayground}
             type="button"
           >
-            {playgroundState.status === "pending" ? "Planning..." : "Plan Task"}
+            {playgroundState.status === "pending" ? "Planning..." : "Plan Agent"}
           </button>
           <button
             className="primary-button control-button"
@@ -429,7 +489,7 @@ function PlaygroundTaskPanel({ onPlanPlayground, onRunPlayground, playgroundInpu
           </button>
         </div>
 
-        {totalSteps > 1 ? <p className="state-copy">Each paid step asks for its own Freighter approval.</p> : null}
+        <p className="state-copy">Each paid step asks for its own Freighter approval and stops when the budget runs out.</p>
         {playgroundState.error ? <p className="state-copy state-copy-error">{playgroundState.error}</p> : null}
       </div>
     </article>
@@ -491,13 +551,13 @@ function PlaygroundReportPanel({ appData, playgroundState }) {
         <span>{run ? `$${run.totalSpendUsd.toFixed(2)}` : "idle"}</span>
       </div>
 
-      <div className="control-panel-body">
+        <div className="control-panel-body">
         <h3>{run ? run.summary : "Latest run"}</h3>
 
         {run ? (
           <>
             {run.finalAnswer ? (
-          <div className="answer-block">
+              <div className="answer-block">
                 <div className="answer-section">
                   <span>Final answer</span>
                   <strong>{run.finalAnswer.headline}</strong>
@@ -529,6 +589,25 @@ function PlaygroundReportPanel({ appData, playgroundState }) {
                 </div>
               </div>
             ) : null}
+            <div className="answer-grid">
+              <div className="answer-section">
+                <span>Budget</span>
+                <strong>
+                  {formatUsd(run.totalSpendUsd)} spent
+                  {run.budgetUsd !== null && run.budgetUsd !== undefined ? ` of ${formatUsd(run.budgetUsd)}` : ""}
+                </strong>
+                <p>
+                  {run.remainingBudgetUsd !== null && run.remainingBudgetUsd !== undefined
+                    ? `${formatUsd(run.remainingBudgetUsd)} remaining after this run.`
+                    : "No budget cap recorded for this run."}
+                </p>
+              </div>
+              <div className="answer-section">
+                <span>Execution</span>
+                <strong>{run.completedAllSteps ? "All planned steps completed" : "Agent stopped at the budget cap"}</strong>
+                <p>{run.objective}</p>
+              </div>
+            </div>
             <div className="panel-kv">
               <span>Objective</span>
               <strong>{run.objective}</strong>
@@ -547,10 +626,23 @@ function PlaygroundReportPanel({ appData, playgroundState }) {
                 ))}
               </div>
             ) : null}
+            {run.steps?.length ? (
+              <div className="trace-list">
+                {run.steps.map((step) => (
+                  <div className="trace-row" key={step.stepId}>
+                    <div>
+                      <strong>{step.title}</strong>
+                      <p>{step.query}</p>
+                    </div>
+                    <span>{`${formatUsd(step.priceUsd)} / ${step.settlement?.transaction ? shortenValue(step.settlement.transaction, 8, 6) : "pending"}`}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div className="result-card-grid">
-              {run.sources.map((source) => (
+              {run.sources.map((source, index) => (
                 <a className="result-card" href={source.url} key={`${source.provider}-${source.url}`} rel="noreferrer" target="_blank">
-                  <strong>{source.title}</strong>
+                  <strong>{`[${index + 1}] ${source.title}`}</strong>
                   <p>{source.provider}</p>
                   <span>open source</span>
                 </a>
@@ -604,7 +696,7 @@ export function OverviewPage({ appData, onConnect, onSwitchToGateway, walletStat
               {walletState.address ? "Wallet Connected" : "Connect Freighter"}
             </button>
             <button className="secondary-button" onClick={onSwitchToGateway} type="button">
-              Open paid gateways
+              Open agent gateways
             </button>
           </div>
 
@@ -683,8 +775,8 @@ export function GatewayPage({
       <div className="page-shell">
         <PageIntro
           eyebrow="GATEWAY"
-          title="Run paid search and news"
-          copy="Choose search or news, approve the spend, and get a clear result back."
+          title="Run agent-callable search and news"
+          copy="Choose search or news, approve the spend, and get a clear answer back."
         />
         <SetupNotice appData={appData} runtimeError={runtimeError} />
 
@@ -714,30 +806,34 @@ export function GatewayPage({
 }
 
 export function PlaygroundPage({
+  agentBudgetUsd,
   appData,
   onPlanPlayground,
   onRunPlayground,
   playgroundInput,
   playgroundState,
   runtimeError,
+  setAgentBudgetUsd,
   setPlaygroundInput,
 }) {
   return (
     <section className="app-page">
       <div className="page-shell">
         <PageIntro
-          eyebrow="PLAYGROUND"
-          title="Run an agent task"
-          copy="Plan the task, pay step by step, and return a clearer answer with sources and receipts."
+          eyebrow="AGENT RUNNER"
+          title="Deploy an autonomous research agent"
+          copy="Give the agent a task and a budget, let it pay for live data, and review the answer with receipts."
         />
         <SetupNotice appData={appData} runtimeError={runtimeError} />
 
         <div className="page-grid">
           <PlaygroundTaskPanel
+            agentBudgetUsd={agentBudgetUsd}
             onPlanPlayground={onPlanPlayground}
             onRunPlayground={onRunPlayground}
             playgroundInput={playgroundInput}
             playgroundState={playgroundState}
+            setAgentBudgetUsd={setAgentBudgetUsd}
             setPlaygroundInput={setPlaygroundInput}
           />
           <PlaygroundPlanPanel logs={playgroundState.logs} plan={playgroundState.plan} />

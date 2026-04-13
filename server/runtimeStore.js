@@ -191,8 +191,8 @@ export function createRuntimeStore(config) {
       {
         step: "02",
         token: "API",
-        title: "Wrap Or Pick Gateway",
-        copy: "Use the prebuilt search, news, or API wrapper before the agent spends on the next call.",
+        title: "Pick Gateway",
+        copy: "Use the search or news gateway before the agent spends on the next call.",
       },
       {
         step: "03",
@@ -210,7 +210,7 @@ export function createRuntimeStore(config) {
         step: "05",
         token: "RUN",
         title: "Return Report",
-        copy: "Gateway results and receipts stay visible for the operator and the playground run.",
+        copy: "Agent results and receipts stay visible for the operator after every run.",
       },
     ];
   }
@@ -228,7 +228,7 @@ export function createRuntimeStore(config) {
           "Sentryx402 turns search and news into paid agent services on Stellar, then gives the operator policy control, wallet approval, and receipts for every query.",
         explainer: [
           "Gateway wraps live search and news behind x402 so agents pay only when they actually query.",
-          "Playground plans natural-language tasks into paid steps, runs them through the approved gateways, and returns a clearer final answer with sources.",
+          "Agent Runner plans natural-language tasks into paid steps, runs them through the approved gateways, and returns a clearer final answer with sources.",
           "Every successful call leaves a visible receipt trail so operator spend is easy to verify during the demo.",
         ],
       },

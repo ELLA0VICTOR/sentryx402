@@ -4,9 +4,9 @@ Sentryx402 is payment-native agent infrastructure on Stellar x402.
 
 It ships the combined product surface you would expect in a hackathon demo:
 
-1. `API Gateway`
-   Wraps search, news, and approved REST API profiles behind x402 so an agent pays only when it needs fresh information or structured data.
-2. `Playground`
+1. `Gateway`
+   Runs paid search and paid news calls behind x402 so an agent pays only when it needs fresh information.
+2. `Agent Runner`
    Takes a natural-language task, plans the paid steps, runs them with Freighter, and returns a final answer with sources.
 3. `Receipts + Controls`
    Keeps operator policy checks and settlement receipts visible for every paid call.
@@ -15,9 +15,9 @@ It ships the combined product surface you would expect in a hackathon demo:
 
 - Connects a real Stellar wallet that can sign Soroban auth entries
 - Evaluates each paid query against an operator policy profile
-- Calls real x402-protected search, news, and API routes on Stellar testnet
+- Calls real x402-protected search and news routes on Stellar testnet
 - Records successful settlements in a visible receipt ledger
-- Returns a final answer so the Playground is useful instead of just returning raw links
+- Returns a final answer so the Agent Runner is useful instead of just returning raw links
 
 ## Stack
 
@@ -38,7 +38,6 @@ It ships the combined product surface you would expect in a hackathon demo:
 - `POST /api/playground/report`
 - `GET /x402/gateway/search`
 - `GET /x402/gateway/news`
-- `GET /x402/gateway/api`
 
 The browser client uses Freighter to sign the Stellar auth entry required by x402, then retries the paid request automatically through `@x402/fetch`.
 
@@ -55,7 +54,6 @@ Optional:
   If present, the search gateway uses Brave Search. Without it, the app falls back to Wikipedia search.
 - `X402_SEARCH_PRICE`
 - `X402_NEWS_PRICE`
-- `X402_API_PRICE`
 
 Defaults:
 
@@ -64,7 +62,6 @@ Defaults:
 - OpenZeppelin Channels x402 testnet facilitator
 - `$0.01` search queries
 - `$0.02` news queries
-- `$0.03` API queries
 
 ## Run
 

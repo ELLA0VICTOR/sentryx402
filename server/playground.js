@@ -28,6 +28,15 @@ function isCurrentEventsTask(task) {
 
 function buildSearchQuery(task) {
   const normalized = normalizeText(task);
+  const repoHint = normalized.match(/\b[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\b/)?.[0];
+
+  if (repoHint && /\breadme(?:\.md)?\b/i.test(normalized)) {
+    return `${repoHint} README GitHub`;
+  }
+
+  if (repoHint && /\bgithub|repository|repo\b/i.test(normalized)) {
+    return `${repoHint} GitHub`;
+  }
 
   if (/\breadme(?:\.md)?\b/i.test(normalized) && /\bgithub|repository|repo\b/i.test(normalized)) {
     return `${buildTaskQuery(normalized)} github readme`;
@@ -67,7 +76,7 @@ function getLeadItem(outputs, serviceId) {
   return outputs.find((output) => output.serviceId === serviceId)?.result?.items?.[0] || null;
 }
 
-function buildFinalAnswer(outputs) {
+function buildFinalAnswer(outputs, completedAllSteps) {
   const newsLead = getLeadItem(outputs, "news_gateway");
   const searchLead = getLeadItem(outputs, "search_gateway");
 
@@ -98,7 +107,7 @@ function buildFinalAnswer(outputs) {
   ];
 
   return {
-    headline: "Paid research run completed.",
+    headline: completedAllSteps ? "Paid research run completed." : "Agent stopped at the budget cap.",
     summary:
       summaryParts.join(" ") ||
       "The paid run completed and returned source material you can open and verify.",
@@ -151,8 +160,11 @@ export function createPlaygroundPlan({ services, task }) {
   };
 }
 
-export function createPlaygroundRun({ outputs, plan, task }) {
+export function createPlaygroundRun({ budgetUsd: rawBudgetUsd, completedAllSteps: rawCompletedAllSteps, outputs, plan, task }) {
   const normalizedTask = normalizeText(task || plan?.task);
+  const budgetUsd = Number.isFinite(Number(rawBudgetUsd)) ? Number(rawBudgetUsd) : null;
+  const completedAllSteps =
+    typeof rawCompletedAllSteps === "boolean" ? rawCompletedAllSteps : outputs.length >= plan.steps.length;
 
   if (!normalizedTask) {
     return {
@@ -198,7 +210,9 @@ export function createPlaygroundRun({ outputs, plan, task }) {
     ok: true,
     run: {
       id: createRunId(),
-      finalAnswer: buildFinalAnswer(outputs),
+      budgetUsd,
+      completedAllSteps,
+      finalAnswer: buildFinalAnswer(outputs, completedAllSteps),
       highlights,
       objective: plan.objective,
       sources,
@@ -207,6 +221,7 @@ export function createPlaygroundRun({ outputs, plan, task }) {
         itemCount: output.itemCount || output?.result?.itemCount || 0,
         provider: output.provider || output?.result?.provider || output.serviceId,
         query: output.query,
+        priceUsd: Number(output.priceUsd || 0),
         serviceId: output.serviceId,
         settlement: output.settlement
           ? {
@@ -217,13 +232,21 @@ export function createPlaygroundRun({ outputs, plan, task }) {
         stepId: output.stepId,
         title: output.title,
       })),
-      summary: createSummary(outputs, normalizedTask),
+      summary: completedAllSteps
+        ? createSummary(outputs, normalizedTask)
+        : `The agent spent its budget and stopped after ${outputs.length} paid ${outputs.length === 1 ? "query" : "queries"}.`,
       task: normalizedTask,
       totalResults: outputs.reduce(
         (sum, output) => sum + (output.itemCount || output?.result?.itemCount || 0),
         0,
       ),
       totalSpendUsd: Number(outputs.reduce((sum, output) => sum + (output.priceUsd || 0), 0).toFixed(2)),
+      remainingBudgetUsd:
+        budgetUsd === null
+          ? null
+          : Number(
+              Math.max(0, budgetUsd - outputs.reduce((sum, output) => sum + (output.priceUsd || 0), 0)).toFixed(2),
+            ),
     },
   };
 }

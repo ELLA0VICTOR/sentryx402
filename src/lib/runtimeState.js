@@ -1,7 +1,7 @@
 export const pageTabs = [
   { id: "overview", label: "Overview" },
   { id: "gateway", label: "Gateway" },
-  { id: "playground", label: "Playground" },
+  { id: "playground", label: "Agent Runner" },
   { id: "receipts", label: "Receipts" },
 ];
 
@@ -55,7 +55,7 @@ export function createFallbackRuntime() {
         step: "05",
         token: "RUN",
         title: "Return Report",
-        copy: "Gateway results and receipts stay visible for both the operator and the agent run.",
+        copy: "Agent results and receipts stay visible after each run.",
       },
     ],
     keySafeguards: [
