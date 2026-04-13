@@ -50,8 +50,10 @@ Copy `.env.example` to `.env` and fill in:
 
 Optional:
 
+- `TAVILY_API_KEY`
+  If present, the search gateway uses Tavily as the primary live search provider in production.
 - `BRAVE_SEARCH_API_KEY`
-  If present, the search gateway uses Brave Search. Without it, the app falls back to Wikipedia search.
+  If present, the search gateway uses Brave Search as a secondary live provider.
 - `X402_SEARCH_PRICE`
 - `X402_NEWS_PRICE`
 

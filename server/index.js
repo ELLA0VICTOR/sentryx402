@@ -253,6 +253,7 @@ async function handleGatewayRequest(req, res, serviceId) {
   const service = appConfig.serviceIndex[serviceId];
 
   const gateway = await runGatewayQuery({
+    tavilyApiKey: appConfig.tavilyApiKey,
     braveSearchApiKey: appConfig.braveSearchApiKey,
     input: req.query?.input,
     limit: req.query?.limit,

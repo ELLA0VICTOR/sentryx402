@@ -54,6 +54,7 @@ export function createAppConfig() {
       : "https://channels.openzeppelin.com/x402");
   const facilitatorApiKey = process.env.X402_FACILITATOR_API_KEY?.trim() || "";
   const payTo = process.env.STELLAR_PAY_TO?.trim() || "";
+  const tavilyApiKey = process.env.TAVILY_API_KEY?.trim() || "";
   const braveSearchApiKey = process.env.BRAVE_SEARCH_API_KEY?.trim() || "";
   const networkPassphrase = getNetworkPassphrase(network);
   const asset = getUsdcAddress(network);
@@ -75,14 +76,18 @@ export function createAppConfig() {
   const gatewayServices = [
     buildGatewayService({
       description:
-        "Wrap live search behind a per-query x402 payment. Uses Brave Search when configured, otherwise falls back to DuckDuckGo and Wikipedia.",
+        "Wrap live search behind a per-query x402 payment. Uses Tavily when configured, otherwise falls back to Brave Search, DuckDuckGo, and Wikipedia.",
       id: "search_gateway",
       method: "GET",
       name: "Search Gateway",
       path: "/x402/gateway/search",
       price: searchPrice,
       publicOrigin,
-      upstream: braveSearchApiKey ? "Brave Search" : "DuckDuckGo / Wikipedia",
+      upstream: tavilyApiKey
+        ? "Tavily Search"
+        : braveSearchApiKey
+          ? "Brave Search"
+          : "DuckDuckGo / Wikipedia",
     }),
     buildGatewayService({
       description:
@@ -110,6 +115,7 @@ export function createAppConfig() {
     facilitatorApiKey,
     payTo,
     asset,
+    tavilyApiKey,
     braveSearchApiKey,
     gatewayServices,
     serviceIndex,

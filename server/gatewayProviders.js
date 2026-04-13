@@ -366,6 +366,42 @@ async function runBraveSearch(query, limit, apiKey) {
   };
 }
 
+async function runTavilySearch(query, limit, apiKey) {
+  const data = await fetchJson("https://api.tavily.com/search", {
+    body: JSON.stringify({
+      include_answer: false,
+      include_images: false,
+      max_results: limit,
+      query,
+      search_depth: "basic",
+      topic: "general",
+    }),
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  const items = (data?.results || []).map((item, index) => ({
+    id: String(item?.url || index),
+    meta: getHost(item?.url),
+    snippet: stripHtmlLoose(item?.content || item?.snippet || ""),
+    title: item?.title || item?.url || "Untitled result",
+    url: item?.url,
+  }));
+
+  return {
+    itemCount: items.length,
+    items: prioritizeSearchItems(items, query),
+    limit,
+    provider: "Tavily Search",
+    query,
+    source: "tavily",
+  };
+}
+
 function parseGoogleNewsRss(xml, limit) {
   const itemPattern = /<item>([\s\S]*?)<\/item>/gi;
   const items = [];
@@ -673,8 +709,23 @@ async function runCustomHttpProfile(definition, input, limit) {
   };
 }
 
-async function runSearchGateway(query, limit, braveSearchApiKey) {
+async function runSearchGateway(query, limit, tavilyApiKey, braveSearchApiKey) {
   const failures = [];
+
+  if (tavilyApiKey) {
+    try {
+      const tavily = await runTavilySearch(query, limit, tavilyApiKey);
+      if (tavily.itemCount > 0) {
+        return {
+          ...tavily,
+          summary: buildResultSummary("search", query, tavily.items),
+        };
+      }
+      failures.push("Tavily returned no results");
+    } catch (error) {
+      failures.push(`Tavily failed: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  }
 
   if (braveSearchApiKey) {
     try {
@@ -717,7 +768,13 @@ async function runSearchGateway(query, limit, braveSearchApiKey) {
     failures.push(`Wikipedia failed: ${error instanceof Error ? error.message : "unknown error"}`);
   }
 
-  throw new Error(`All live search providers failed. ${failures.join(" / ")}`);
+  const providerHint = tavilyApiKey
+    ? ""
+    : braveSearchApiKey
+      ? ""
+      : " Configure TAVILY_API_KEY for a production-safe search provider instead of relying on DuckDuckGo scraping.";
+
+  throw new Error(`All live search providers failed. ${failures.join(" / ")}.${providerHint}`);
 }
 
 async function runNewsGateway(query, limit) {
@@ -774,7 +831,16 @@ async function runApiGateway(profileId, input, limit, customGatewayDefinitions =
   throw new Error("Unknown API profile.");
 }
 
-export async function runGatewayQuery({ braveSearchApiKey, customGatewayDefinitions = [], input, limit, profileId, query, serviceId }) {
+export async function runGatewayQuery({
+  tavilyApiKey,
+  braveSearchApiKey,
+  customGatewayDefinitions = [],
+  input,
+  limit,
+  profileId,
+  query,
+  serviceId,
+}) {
   const normalizedLimit = parseLimit(limit);
 
   try {
@@ -814,7 +880,7 @@ export async function runGatewayQuery({ braveSearchApiKey, customGatewayDefiniti
       result =
         serviceId === "news_gateway"
           ? await runNewsGateway(normalizedQuery, normalizedLimit)
-          : await runSearchGateway(normalizedQuery, normalizedLimit, braveSearchApiKey);
+          : await runSearchGateway(normalizedQuery, normalizedLimit, tavilyApiKey, braveSearchApiKey);
     }
 
     return {
